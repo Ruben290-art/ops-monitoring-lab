@@ -1,0 +1,7 @@
+---
+portfolio_app_user: portfolio-app
+portfolio_app_group: portfolio-app
+portfolio_app_dir: /opt/portfolio-status-service
+portfolio_app_port: 8080
+portfolio_check_dir: /usr/lib/check_mk_agent/local
+

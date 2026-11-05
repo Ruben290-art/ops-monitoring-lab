@@ -1,0 +1,7 @@
+---
+- name: Deploy portfolio status service and monitoring check
+  hosts: monitoring_hosts
+  become: true
+  roles:
+    - app_monitoring
+

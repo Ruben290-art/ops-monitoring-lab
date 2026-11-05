@@ -1,0 +1,22 @@
+[Unit]
+Description=Portfolio HTTP Status Service
+After=network.target
+
+[Service]
+Type=simple
+User={{ portfolio_app_user }}
+Group={{ portfolio_app_group }}
+WorkingDirectory={{ portfolio_app_dir }}
+Environment=APP_HOST=127.0.0.1
+Environment=APP_PORT={{ portfolio_app_port }}
+ExecStart=/usr/bin/python3 {{ portfolio_app_dir }}/status_service.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,91 @@
+---
+- name: Ensure Python is installed
+  ansible.builtin.package:
+    name: python3
+    state: present
+
+- name: Create service group
+  ansible.builtin.group:
+    name: "{{ portfolio_app_group }}"
+    system: true
+    state: present
+
+- name: Create service user
+  ansible.builtin.user:
+    name: "{{ portfolio_app_user }}"
+    group: "{{ portfolio_app_group }}"
+    home: "{{ portfolio_app_dir }}"
+    shell: /usr/sbin/nologin
+    system: true
+    create_home: false
+    state: present
+
+- name: Create application directory
+  ansible.builtin.file:
+    path: "{{ portfolio_app_dir }}"
+    state: directory
+    owner: "{{ portfolio_app_user }}"
+    group: "{{ portfolio_app_group }}"
+    mode: "0755"
+
+- name: Install status service
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../app/status_service.py"
+    dest: "{{ portfolio_app_dir }}/status_service.py"
+    owner: "{{ portfolio_app_user }}"
+    group: "{{ portfolio_app_group }}"
+    mode: "0755"
+  notify: Restart portfolio status service
+
+- name: Install systemd unit
+  ansible.builtin.template:
+    src: portfolio-status-service.service.j2
+    dest: /etc/systemd/system/portfolio-status-service.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart portfolio status service
+
+- name: Create Checkmk local check directory
+  ansible.builtin.file:
+    path: "{{ portfolio_check_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Checkmk-compatible local check
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../monitoring/check_app_service.py"
+    dest: "{{ portfolio_check_dir }}/check_portfolio_app"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Enable and start portfolio status service
+  ansible.builtin.systemd:
+    name: portfolio-status-service
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Verify application health endpoint
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ portfolio_app_port }}/health"
+    status_code: 200
+    return_content: true
+  register: portfolio_health
+  retries: 5
+  delay: 2
+  until: portfolio_health.status == 200
+
+- name: Verify monitoring check output
+  ansible.builtin.command: "{{ portfolio_check_dir }}/check_portfolio_app"
+  register: portfolio_check
+  changed_when: false
+  failed_when: >-
+    portfolio_check.rc != 0 or
+    not portfolio_check.stdout.startswith('0 "Portfolio App Health"')
+
